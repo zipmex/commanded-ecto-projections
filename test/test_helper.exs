@@ -8,6 +8,7 @@ defmodule CreateProjections do
   def change do
     create table(:projections) do
       add(:name, :text)
+      add(:value, :text)
     end
   end
 end

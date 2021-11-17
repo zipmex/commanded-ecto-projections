@@ -3,5 +3,6 @@ defmodule Commanded.Projections.Projection do
 
   schema "projections" do
     field(:name, :string)
+    field(:value, :string)
   end
 end

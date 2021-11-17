@@ -59,10 +59,6 @@ defmodule Commanded.Projections.Ecto do
         projection_name = Map.fetch!(metadata, :handler_name)
         event_number = Map.fetch!(metadata, :event_number)
 
-        changeset =
-          %ProjectionVersion{projection_name: projection_name}
-          |> ProjectionVersion.changeset(%{last_seen_event_number: event_number})
-
         prefix = schema_prefix(event, metadata)
 
         multi =
@@ -71,13 +67,10 @@ defmodule Commanded.Projections.Ecto do
             version =
               case repo.get(ProjectionVersion, projection_name, prefix: prefix) do
                 nil ->
-                  repo.insert!(
-                    %ProjectionVersion{
-                      projection_name: projection_name,
-                      last_seen_event_number: 0
-                    },
-                    prefix: prefix
-                  )
+                  %ProjectionVersion{
+                    projection_name: projection_name,
+                    last_seen_event_number: 0
+                  }
 
                 version ->
                   version
@@ -89,7 +82,16 @@ defmodule Commanded.Projections.Ecto do
               {:error, :already_seen_event}
             end
           end)
-          |> Ecto.Multi.update(:projection_version, changeset, prefix: prefix)
+          |> Ecto.Multi.insert_or_update(
+            :projection_version,
+            fn %{verify_projection_version: %{version: version}} ->
+              version
+              |> Ecto.Changeset.change()
+              |> Ecto.Changeset.force_change(:projection_name, projection_name)
+              |> Ecto.Changeset.optimistic_lock(:last_seen_event_number, fn _ -> event_number end)
+            end,
+            prefix: prefix
+          )
 
         with %Ecto.Multi{} = multi <- apply(multi_fn, [multi]),
              {:ok, changes} <- transaction(multi) do
