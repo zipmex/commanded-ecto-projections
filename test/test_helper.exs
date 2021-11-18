@@ -16,5 +16,3 @@ end
 Ecto.Migrator.up(Repo, 20_170_609_120_000, CreateProjections)
 
 ExUnit.start()
-
-Ecto.Adapters.SQL.Sandbox.mode(Repo, :manual)

@@ -14,4 +14,4 @@ config :commanded_ecto_projections, Commanded.Projections.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  pool: Ecto.Adapters.SQL.Sandbox
+  pool_size: 5

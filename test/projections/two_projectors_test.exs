@@ -11,16 +11,12 @@ defmodule Commanded.Projections.TwoProjectorsTest do
   defmodule SlowProjector do
     use Commanded.Projections.Ecto, application: TestApplication, name: "Projector"
 
-    project %AnEvent{name: name}, _metadata, fn multi ->
+    project %AnEvent{pid: pid, name: name}, _metadata, fn multi ->
       multi
-      |> Multi.run(:projection, fn repo, _changes ->
-        {:ok, repo.get_by(Projection, name: name) || %Projection{name: name}}
-      end)
-      |> Multi.run(:sleep, fn _, _ ->
-        {:ok, Ecto.Adapters.SQL.query(Repo, "SELECT pg_sleep(10);")}
-      end)
-      |> Multi.insert_or_update(:upsert, fn %{projection: projection} ->
-        Ecto.Changeset.change(projection, %Projection{value: "slow"})
+      |> Multi.insert(:insert, fn _ ->
+        send(pid, :middle_of_slow_projector)
+        Process.sleep(1_000)
+        %Projection{name: name}
       end)
     end
 
@@ -42,39 +38,54 @@ defmodule Commanded.Projections.TwoProjectorsTest do
 
     project %AnEvent{name: name}, _metadata, fn multi ->
       multi
-      |> Multi.run(:projection, fn repo, _changes ->
-        {:ok, repo.get_by(Projection, name: name) || %Projection{name: name}}
-      end)
-      |> Ecto.Multi.insert_or_update(:upsert, fn %{projection: projection} ->
-        Ecto.Changeset.change(projection, %{value: UUID.uuid4()})
+      |> Multi.insert(:insert, fn _ ->
+        IO.inspect("fast insert #{name}")
+        %Projection{name: name}
       end)
     end
   end
 
   setup do
     start_supervised!(TestApplication)
-    Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    reset!()
+    :ok
+  end
+
+  defp reset! do
+    Repo.delete_all(Projection)
+    Repo.delete_all(FastProjector.ProjectionVersion)
+    Repo.delete_all(SlowProjector.ProjectionVersion)
+    :ok
   end
 
   test "slow projector should return fail" do
-    FastProjector.handle(%AnEvent{}, %{handler_name: "Projector", event_number: 1})
+    test_pid = self()
 
-    Repo.all(Projection) |> IO.inspect(label: "all projections")
+    FastProjector.handle(%AnEvent{name: "1_fast_projector"}, %{
+      handler_name: "Projector",
+      event_number: 1
+    })
 
     slow_task =
       Task.async(fn ->
-        SlowProjector.handle(%AnEvent{}, %{handler_name: "Projector", event_number: 1})
+        SlowProjector.handle(%AnEvent{pid: test_pid, name: "2_slow_projector"}, %{
+          handler_name: "Projector",
+          event_number: 2
+        })
       end)
 
-    fast_task =
-      Task.async(fn ->
-        FastProjector.handle(%AnEvent{}, %{handler_name: "Projector", event_number: 1})
-      end)
+    assert_receive :middle_of_slow_projector
 
-    Task.await_many([slow_task, fast_task]) |> IO.inspect(label: "results of tasks")
+    assert_raise Ecto.StaleEntryError, fn ->
+      FastProjector.handle(%AnEvent{name: "2_fast_projector"}, %{
+        handler_name: "Projector",
+        event_number: 2
+      })
+    end
 
-    assert_projections(Projection, ["AnEvent"])
-    Repo.all(Projection) |> IO.inspect(label: "all projections")
-    assert_seen_event("Projector", 1)
+    assert :ok = Task.await(slow_task)
+
+    assert_seen_event("Projector", 2)
+    assert_projections(Projection, ["1_fast_projector", "2_slow_projector"])
   end
 end
