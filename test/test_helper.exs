@@ -1,6 +1,8 @@
 alias Commanded.Projections.Repo
+alias Commanded.Projections.ConcurrentRepo
 
 {:ok, _} = Repo.start_link()
+{:ok, _} = ConcurrentRepo.start_link()
 
 defmodule CreateProjections do
   use Ecto.Migration
@@ -12,8 +14,12 @@ defmodule CreateProjections do
   end
 end
 
-Ecto.Migrator.up(Repo, 20_170_609_120_000, CreateProjections)
+Ecto.Migrator.up(Repo, 99_999_999_999_999, CreateProjections)
+Ecto.Migrator.up(ConcurrentRepo, 99_999_999_999_999, CreateProjections)
 
-ExUnit.start()
+ExUnit.start(
+  capture_log: true,
+  exclude: [:skip]
+)
 
 Ecto.Adapters.SQL.Sandbox.mode(Repo, :manual)
