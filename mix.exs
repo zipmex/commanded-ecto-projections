@@ -49,7 +49,8 @@ defmodule Commanded.Projections.Ecto.Mixfile do
   defp aliases do
     [
       setup: ["ecto.create", "ecto.migrate"],
-      reset: ["ecto.drop", "setup"]
+      reset: ["ecto.drop", "setup"],
+      test: ["setup", "test"]
     ]
   end
 

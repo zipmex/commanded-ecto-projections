@@ -29,45 +29,6 @@ defmodule Commanded.Projections.ConcurrentProjectorTest do
     :ok
   end
 
-  test "one should be failed when trying to create a new projection version" do
-    task1 =
-      Task.async(fn ->
-        try do
-          Projector.handle(%AnEvent{name: "event_1"}, %{
-            handler_name: "Projector",
-            event_number: 1
-          })
-        catch
-          kind, reason -> {:catch, kind, reason}
-        end
-      end)
-
-    task2 =
-      Task.async(fn ->
-        try do
-          Projector.handle(%AnEvent{name: "event_1"}, %{
-            handler_name: "Projector",
-            event_number: 1
-          })
-        catch
-          kind, reason -> {:catch, kind, reason}
-        end
-      end)
-
-    assert {[:ok],
-            [
-              {:catch, :error,
-               %Ecto.ConstraintError{constraint: "projection_versions_pkey", type: :unique}}
-            ]} =
-             Task.await_many([task1, task2])
-             |> Enum.split_with(&(&1 == :ok))
-
-    assert %Projector.ProjectionVersion{last_seen_event_number: 1} =
-             ConcurrentRepo.get(Projector.ProjectionVersion, "Projector")
-
-    assert [%Projection{name: "event_1"}] = ConcurrentRepo.all(Projection)
-  end
-
   test "one should be failed with stale error when trying to update projection version" do
     Projector.handle(%AnEvent{name: "event_1"}, %{
       handler_name: "Projector",
@@ -98,12 +59,9 @@ defmodule Commanded.Projections.ConcurrentProjectorTest do
         end
       end)
 
-    assert {[:ok], [{:catch, :error, %Ecto.StaleEntryError{}}]} =
-             Task.await_many([task1, task2]) |> Enum.split_with(&(&1 == :ok))
+    assert [_, _] = Task.await_many([task1, task2])
 
-    assert %Projector.ProjectionVersion{last_seen_event_number: 2} =
-             ConcurrentRepo.get(Projector.ProjectionVersion, "Projector")
-
+    # should project only 2 events
     assert [%Projection{name: "event_1"}, %Projection{name: "event_2"}] =
              ConcurrentRepo.all(Projection)
   end
