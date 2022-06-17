@@ -17,6 +17,9 @@ end
 Ecto.Migrator.up(Repo, 99_999_999_999_999, CreateProjections)
 Ecto.Migrator.up(ConcurrentRepo, 99_999_999_999_999, CreateProjections)
 
-ExUnit.start()
+ExUnit.start(
+  capture_log: true,
+  exclude: [:skip]
+)
 
 Ecto.Adapters.SQL.Sandbox.mode(Repo, :manual)
