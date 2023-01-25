@@ -17,9 +17,8 @@ end
 Ecto.Migrator.up(Repo, 99_999_999_999_999, CreateProjections)
 Ecto.Migrator.up(ConcurrentRepo, 99_999_999_999_999, CreateProjections)
 
-ExUnit.start(
-  capture_log: true,
-  exclude: [:skip]
-)
+Mox.defmock(Commanded.EventStore.Adapters.Mock, for: Commanded.EventStore.Adapter)
+
+ExUnit.start()
 
 Ecto.Adapters.SQL.Sandbox.mode(Repo, :manual)

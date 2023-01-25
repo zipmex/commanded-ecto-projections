@@ -2,13 +2,13 @@ defmodule Commanded.Projections.Ecto.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/commanded/commanded-ecto-projections"
-  @version "1.2.1"
+  @version "1.3.0"
 
   def project do
     [
       app: :commanded_ecto_projections,
       version: @version,
-      elixir: "~> 1.6",
+      elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
       package: package(),
@@ -37,12 +37,13 @@ defmodule Commanded.Projections.Ecto.Mixfile do
       {:postgrex, ">= 0.0.0", only: :test},
 
       # Optional dependencies
-      {:jason, "~> 1.2", optional: true},
+      {:jason, "~> 1.3", optional: true},
 
       # Test & build tooling
-      {:dialyxir, "~> 1.0.0", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:mix_test_watch, "~> 1.0", only: :dev, runtime: false}
+      {:mix_test_watch, "~> 1.1", only: :dev, runtime: false},
+      {:mox, "~> 1.0", only: :test}
     ]
   end
 
